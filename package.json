@@ -3,13 +3,12 @@
   "version": "1.0.0",
   "main": "dist/server.ts",
   "scripts": {
-  "dev": "nodemon",
-  "build": "tsc",
-  "start": "node dist/server.js"
+  "dev": "nodemon backend/server.js",
+  "start":"node backend/server.js"
   },
   "keywords": [],
   "author": "",
-  "module": "ESNext",
+  "type": "module",
   "license": "ISC",
   "description": "",
   "dependencies": {
