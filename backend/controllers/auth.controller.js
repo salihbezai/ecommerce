@@ -13,9 +13,11 @@ const refreshToken = jwt.sign({userId},process.env.REFRESH_TOKEN_SECRET,{
 return {accessToken,refreshToken}
 }
 
+
 const storeRefreshToken = async(userId,refreshToken)=>{
     await redis.set(`refresh_token:${userId}`,refreshToken,"EX",7*24*60*60)
 }
+
 
 const setCookies = (res,accessToken,refreshToken)=>{
     res.cookie("accessToken",accessToken,{
@@ -31,6 +33,7 @@ const setCookies = (res,accessToken,refreshToken)=>{
         sameSite:"strict" // prevents CSRF attack, cross-site request forgery
     })
 }
+
 
 export const signup =async (req,res)=>{
     const {email,password,name} = req.body
@@ -48,25 +51,64 @@ export const signup =async (req,res)=>{
 
     setCookies(res,accessToken,refreshToken)
 
-    res.status(201).json({ user:{
-        _id:user._id,
-        name:user.name,
-        email:user.email,
-        role:user.role
-    },message:"User created successfully"})
+    res.status(201).json(
+        {
+                _id:user._id,
+                name:user.name,
+                email:user.email,
+                role:user.role
+        }
+    )
 
     } catch (error) {
+      console.log("Error in signup controller",error.message)
         res.status(500).json({message:error.message})
     }
 }
 
 
 export const login =async (req,res)=>{
-    res.send("login route called")
+    try {
+        const  { email, password } = req.body
+        const user = await User.findOne({email})
+        if(user && await user.comparePassword(password)){
+            const{accessToken,refreshToken} = generateTokens(user._id)
+
+            await storeRefreshToken(user._id,refreshToken)
+
+            setCookies(res,accessToken,refreshToken)
+
+            res.status(200).json(
+                {
+                _id:user._id,
+                name:user.name,
+                email:user.email,
+                role:user.role
+            })
+        }else{
+            res.status(401).json({message:"Invalid credentials"})
+        }
+    } catch (error) {
+        console.log("Error in login controller",error.message)
+        res.status(500).json({ message: error.message })
+    }
 }
 
 
 export const logout =async (req,res)=>{
+    try {
+        const refreshToken = req.cookies.refreshToken
+        if(refreshToken){
+            const decoded = jwt.verify(refreshToken,process.env.REFRESH_TOKEN_SECRET)
+            await redis.del(`refresh_token:${decoded.userId}`)
+        }
+        res.clearCookie("accessToken")
+        res.clearCookie("refreshToken")
+        res.json({message:"Logout successful"})
+    } catch (error) {
+        console.log("Error in logout controller",error.message)
+        res.status(500).json({ message: "Server error",error: error.message });
+    }
     res.send("logout route called")
 }
 
