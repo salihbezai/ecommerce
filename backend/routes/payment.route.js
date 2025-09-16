@@ -57,3 +57,8 @@ router.post('/create-checkout-session',protectRoute, async (req,res)=>{
         
     }
 })
+
+
+async function createStripeCoupon(discountPercentage){
+   
+}
