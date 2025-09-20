@@ -52,7 +52,15 @@ router.post('/create-checkout-session',protectRoute, async (req,res)=>{
                 }
             ]
             : [],
+            metadata: {
+                userId: req.user._id.toString(),
+                couponCode: couponCode || '',
+            }
         })
+        if(totalAmount >= 20000){
+            await createNewCoupon(req.user._id)
+        }
+        return res.status(200).json({ id:session.id,totalAmount: totalAmount / 100 })
     } catch (error) {
         
     }
@@ -60,5 +68,22 @@ router.post('/create-checkout-session',protectRoute, async (req,res)=>{
 
 
 async function createStripeCoupon(discountPercentage){
+   const coupon = await stripe.coupons.create({
+    percent_off: discountPercentage,
+    duration: 'once',
+   })
+ return coupon.id
    
+}
+
+async function createNewCoupon(userId){
+    const newCoupon = new Coupon({
+        code: "Gift" + Math.random().toString(36).substring(2,8).toUpperCase(),
+        discountPercentage:10,
+        expirationDate: new Date(Date.now() + 30*24*60*60*1000), // 30 days from now
+        userId: userId
+    })
+    await newCoupon.save()
+
+    return newCoupon
 }
