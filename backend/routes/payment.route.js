@@ -30,3 +30,5 @@ async function createNewCoupon(userId){
 
     return newCoupon
 }
+
+export default router
