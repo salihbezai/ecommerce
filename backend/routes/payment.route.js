@@ -8,27 +8,30 @@ import { stripe } from "../lib/stripe.js"
 const router = express.Router()
 
 router.post('/create-checkout-session',protectRoute,createCheckoutSession )
+router.post('/checkout-success',protectRoute,async (req,res)=>{
+    const {sessionId} = req.body
+    if(!sessionId) return res.status(400).json({message:"Session ID is required"})
+    try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId)
+        if(session.payment_status === 'paid'){
+            // mark coupon as used
+            if(session.metadata.couponCode){
+                const coupon = await Coupon.findOneAndUpdate({code:session.metadata.couponCode},
+                    {isActive:false},
+                    {new:true}
+                )
+                if(coupon){
+                    coupon.isActive = false
+                    await coupon.save()
+                }
+            }
+        }
+        res.json({message:"Success"})
+    } catch (error) {
+        console.log("Error in checkout-success route",error.message)
+        res.status(500).json({ message: "Server error", error: error.message })
+    }
+})
 
-
-async function createStripeCoupon(discountPercentage){
-   const coupon = await stripe.coupons.create({
-    percent_off: discountPercentage,
-    duration: 'once',
-   })
- return coupon.id
-   
-}
-
-async function createNewCoupon(userId){
-    const newCoupon = new Coupon({
-        code: "Gift" + Math.random().toString(36).substring(2,8).toUpperCase(),
-        discountPercentage:10,
-        expirationDate: new Date(Date.now() + 30*24*60*60*1000), // 30 days from now
-        userId: userId
-    })
-    await newCoupon.save()
-
-    return newCoupon
-}
 
 export default router
